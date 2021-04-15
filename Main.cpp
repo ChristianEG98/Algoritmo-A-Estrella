@@ -1,17 +1,33 @@
 #include "Main.h"
 
+
 int main() {
+	cout << "Practica 1: Algoritmo A Estrella. Fernando Bellot y Christian Esteban" << endl;
 	chcp1252();
 	tMatriz matriz;
 	tLista abierta, cerrada, camino;
+	tLista caminouwu2;
+	caminouwu2.contador = 0;
 	bool continuar = true;
 	cerrada.contador = 0;
 	iniciarMatriz(matriz);
 	mostrar(matriz);
 	iniciarElementos(matriz, abierta);
+	
+	//seleccionar modo (paso a paso o automaticamente)
+	int modo, replan;
+	do {
+		cout << "¿Cómo desea ejecutar el algoritmo?" << endl;
+		cout << "1. Automáticamente" << endl;
+		cout << "0. Paso a paso" << endl;
+		cout << "Introduzca una opción: ";
+		cin >> modo;
+	} while (modo < 0 || modo > 1);
+
+	
 	//ejecuta el algoritmo hasta llegar a la casilla final y muestra el contenido de ambas listas
 	do {
-		aEstrella(matriz, abierta, cerrada, continuar);
+		aEstrella(matriz, abierta, cerrada, caminouwu2, continuar);
 		cout << endl << "Lista abierta: ";
 		for (int i = 0; i < abierta.contador; i++) {
 			cout << abierta.casillas[i].coor.alto << " " << abierta.casillas[i].coor.ancho << " | ";
@@ -22,17 +38,30 @@ int main() {
 		}
 		cout << endl;
 		mostrar(matriz);
-		pausa();
+		if (modo == 0) {
+			do {
+				//cout << "¿Cómo desea ejecutar el algoritmo?" << endl;
+				cout << "1. Replanificar" << endl;
+				cout << "0. Continuar algoritmo" << endl;
+				cout << "Introduzca una opción: ";
+				cin >> replan;
+			} while (replan < 0 || replan > 1);
+			if (replan == 1) {
+				replanificar(matriz,abierta);
+			}
+		}
 	} while (continuar);
 
 	//dibuja el camino resultante y las coordenadas del mismo
 	cout << endl << " Llegada a meta!" << endl;
-	caminoRegreso(matriz, cerrada, camino);
+	caminoRegreso(matriz, caminouwu2, camino);
 	mostrar(matriz);
 	cout << " El camino resultante es : ";
 	for (int j = camino.contador - 1; j >= 0; j--) {
 		cout << " -> | "<< camino.casillas[j].coor.alto << " " << camino.casillas[j].coor.ancho << " |";
 	}
+	cout << endl;
+	pausa();
 	return 0;
 }
 void iniciarMatriz(tMatriz& matriz) {
@@ -40,7 +69,7 @@ void iniciarMatriz(tMatriz& matriz) {
 		cout << "Introduzca el alto y ancho de la matriz (minimo 2 - maximo 50): ";
 		cin >> matriz.limites.alto >> matriz.limites.ancho;
 	} while (matriz.limites.alto < 2 || matriz.limites.alto > 50 || matriz.limites.ancho < 2 || matriz.limites.alto > 50);
-
+	//uwu
 	//inicializar color [negro ('0') = casilla vacia] y coste casillas [1 predeterminado]
 	for (int i = 0; i < matriz.limites.alto; i++) {
 		for (int j = 0; j < matriz.limites.ancho; j++) {
@@ -79,6 +108,34 @@ void iniciarElementos(tMatriz& matriz, tLista& abierta) {
 	matriz.casillas[casAlto][casAncho].color = '5';
 	mostrar(matriz);
 
+	//establecer waypoints
+	int wayp;
+	do {
+		cout << "¿Deseas añadir un waypoint?" << endl;
+		cout << "1. Si" << endl;
+		cout << "0. No" << endl;
+		cout << "Introduzca una opción: ";
+		cin >> wayp;
+
+		if (wayp == 1) {
+			do {
+				cout << "Introduzca la casilla del waypoint (alto y ancho): ";
+				cin >> casAlto >> casAncho;
+			} while (casAlto < 0 || casAlto >= matriz.limites.alto || casAncho < 0 || casAncho >= matriz.limites.ancho);
+			matriz.waypoints.push({ casAlto,casAncho });
+			matriz.casillas[casAlto][casAncho].color = '8';
+			mostrar(matriz);
+		}
+
+	} while (wayp != 0);
+
+	matriz.waypoints.push({ matriz.casillaFin.alto, matriz.casillaFin.ancho });
+	matriz.casillaFin.alto = matriz.waypoints.front().alto;
+	matriz.casillaFin.ancho = matriz.waypoints.front().ancho;
+	matriz.waypoints.pop();
+
+
+
 	//establecer casillas prohibidas y obstaculos
 	do {
 		cout << "1. Añadir casilla prohibida" << endl;
@@ -86,8 +143,8 @@ void iniciarElementos(tMatriz& matriz, tLista& abierta) {
 		cout << "3. Añadir obstaculo coste medio" << endl;
 		cout << "4. Añadir obstaculo coste alto" << endl;
 		cout << "5. Reestablecer casilla" << endl;
-		cout << "0. Salir" << endl;
-		cout << "Introduzca un opcion: ";
+		cout << "0. Ejecutar algoritmo" << endl;
+		cout << "Introduzca una opcion: ";
 		cin >> opcion;
 		if (opcion == 1) { //añadir casilla prohibida color rojo ('1')
 			do {
@@ -176,7 +233,7 @@ tCoor operator + (tCoor c1, tCoor c2) {
 	c3.alto = c1.alto + c2.alto;
 	return c3;
 }
-void aEstrella(tMatriz& matriz, tLista& abierta, tLista& cerrada, bool &continuar) {
+void aEstrella(tMatriz& matriz, tLista& abierta, tLista& cerrada, tLista& camino, bool &continuar) {
 	tCoor vec, aux;
 	tCoorLista mejorCasilla;
 	bool repetida;
@@ -184,8 +241,26 @@ void aEstrella(tMatriz& matriz, tLista& abierta, tLista& cerrada, bool &continua
 	cerrada.casillas[cerrada.contador] = mejorCasilla; //guardamos la casilla en Lista Cerrada
 	cerrada.contador++;
 	matriz.casillas[mejorCasilla.coor.alto][mejorCasilla.coor.ancho].color = '7'; //casilla recorrida color blanco ('7')
+	camino.casillas[camino.contador] = mejorCasilla;
+	camino.contador++;
 	if (mejorCasilla.coor == matriz.casillaFin) { //si la mejor casilla encontrada es igual a la casilla final se termina
-		continuar = false;
+		if (matriz.waypoints.empty()) continuar = false;
+		else {
+			//reiniciamos la lista de casillas abiertas
+			abierta.contador = 0;
+			abierta.casillas[abierta.contador].coor.alto = matriz.casillaFin.alto;
+			abierta.casillas[abierta.contador].coor.ancho = matriz.casillaFin.ancho;
+			abierta.casillas[abierta.contador].padre.alto = matriz.casillaFin.alto;
+			abierta.casillas[abierta.contador].padre.ancho = matriz.casillaFin.ancho;
+			abierta.contador++;
+
+			cerrada.contador = 0;
+			
+			//actualizamos el siguiente destino
+			matriz.casillaFin.alto = matriz.waypoints.front().alto;
+			matriz.casillaFin.ancho = matriz.waypoints.front().ancho;
+			matriz.waypoints.pop();
+		}	
 	}
 	//casillas adyacentes
 	int numsAdy = 8;
@@ -197,7 +272,8 @@ void aEstrella(tMatriz& matriz, tLista& abierta, tLista& cerrada, bool &continua
 		aux = mejorCasilla.coor + vec;
 		repetida = false;
 		//si está en una de las casillas permitidas
-		if (matriz.casillas[aux.alto][aux.ancho].color == '0' || matriz.casillas[aux.alto][aux.ancho].color == '5' || matriz.casillas[aux.alto][aux.ancho].color == '3' || matriz.casillas[aux.alto][aux.ancho].color == '6' || matriz.casillas[aux.alto][aux.ancho].color == '9') {
+		if (matriz.casillas[aux.alto][aux.ancho].color == '0' || matriz.casillas[aux.alto][aux.ancho].color == '5' || matriz.casillas[aux.alto][aux.ancho].color == '3' 
+			|| matriz.casillas[aux.alto][aux.ancho].color == '6' || matriz.casillas[aux.alto][aux.ancho].color == '9' || matriz.casillas[aux.alto][aux.ancho].color == '8') {
 			//miramos si está repetida ya esa casilla en Lista Abierta
 			for (int j = 0; j < abierta.contador; j++) {
 				if (abierta.casillas[j].coor == aux) {
@@ -246,6 +322,7 @@ bool minimaDistancia(double& distancia, int coste, tCoor inicio, tCoor fin) {
 }
 void caminoRegreso(tMatriz& matriz, tLista cerrada, tLista& camino) {
 	int pos = cerrada.contador - 1;
+	int c = cerrada.contador - 1;
 	camino.contador = 0;
 	tCoor hijo, padre;
 	do {
@@ -254,17 +331,67 @@ void caminoRegreso(tMatriz& matriz, tLista cerrada, tLista& camino) {
 		camino.casillas[camino.contador].coor = hijo; //añadimos al camino la casilla hijo
 		camino.contador++;
 		padre = cerrada.casillas[pos].padre; //guardamos la casilla padre de la coordenada
-		pos = posicionPadre(padre, cerrada); //posición en Lista Cerrada de la coordenada que corresponde al padre de la anterior
+		pos = posicionPadre(padre, cerrada, c); //posición en Lista Cerrada de la coordenada que corresponde al padre de la anterior
 	} while (pos != 0);
 	//guardamos en camino la casilla de inicio
 	camino.casillas[camino.contador].coor = cerrada.casillas[0].coor;
 	camino.contador++;
 	matriz.casillas[cerrada.casillas[0].coor.alto][cerrada.casillas[0].coor.ancho].color = '4';
 }
-int posicionPadre(tCoor coor, tLista cerrada) {
-	int i = 0;
+
+int posicionPadre(tCoor coor, tLista cerrada, int& i) {
+	//int i = cerrada.contador - 1;
 	while (coor.alto != cerrada.casillas[i].coor.alto || coor.ancho != cerrada.casillas[i].coor.ancho) {
-		i++;
+		i--;
 	}
 	return i;
+}
+
+void replanificar(tMatriz& matriz, tLista& abierta) {
+
+	matriz.casillas[matriz.casillaFin.alto][matriz.casillaFin.ancho].color = '0';
+	while (!matriz.waypoints.empty()) {
+		matriz.casillas[matriz.waypoints.front().alto][matriz.waypoints.front().ancho].color = '0';
+		matriz.waypoints.pop();
+	}
+
+	int casAlto, casAncho;
+
+	//establecer posicion de fin
+	do {
+		cout << "Introduzca la casilla de fin (alto y ancho): ";
+		cin >> casAlto >> casAncho;
+	} while (casAlto < 0 || casAlto >= matriz.limites.alto || casAncho < 0 || casAncho >= matriz.limites.ancho);
+	//guardamos la posicion final y la pintamos de color magenta ('5')
+	matriz.casillaFin.alto = casAlto;
+	matriz.casillaFin.ancho = casAncho;
+	matriz.casillas[casAlto][casAncho].color = '5';
+	mostrar(matriz);
+
+	//establecer waypoints
+	int wayp;
+	do {
+		cout << "¿Deseas añadir un waypoint?" << endl;
+		cout << "1. Si" << endl;
+		cout << "0. No" << endl;
+		cout << "Introduzca una opción: ";
+		cin >> wayp;
+
+		if (wayp == 1) {
+			do {
+				cout << "Introduzca la casilla del waypoint (alto y ancho): ";
+				cin >> casAlto >> casAncho;
+			} while (casAlto < 0 || casAlto >= matriz.limites.alto || casAncho < 0 || casAncho >= matriz.limites.ancho);
+			matriz.waypoints.push({ casAlto,casAncho });
+			matriz.casillas[casAlto][casAncho].color = '8';
+			mostrar(matriz);
+		}
+
+	} while (wayp != 0);
+
+	matriz.waypoints.push({ matriz.casillaFin.alto, matriz.casillaFin.ancho });
+	matriz.casillaFin.alto = matriz.waypoints.front().alto;
+	matriz.casillaFin.ancho = matriz.waypoints.front().ancho;
+	matriz.waypoints.pop();
+
 }
